@@ -1,46 +1,33 @@
 module Vulta
 using Toolips
 using ToolipsSession
+import ToolipsSession: Modifier
+import Toolips: write!, Servable
+import Base: length, show, getindex, setindex!
 using ToolipsSVG
 using OddFrames
+using StreamFrames
 #== Proposed code is somewhat future, but will still not be as far off as one
 might think.
 ==#
 import Base: *
 # using ToolipsUDP
-const vulta_distance::Int64 = 1
-vulta_speed::Float64 = .01
-const vulta_energy::Int64 = 1
 
-function vulta_speed(distance::Int64, vultaspeed)
+tick_rate::Float64 = .05
 
+mutable struct VultaTensor{D <: Number} <: AbstractTensor
+    gen::Function
+    vec::Vector{D}
+    VultaVector(n::Number = 1) = new{Symbol(typeof(n)}([n for n in 1:n])
+    VultaVector(f::Function, n::)
+    VultaVector()
 end
 
-mutable struct VultaTensor <: AbstractOddFrame
-    
-end
+Ray(x::Int64)
+StreamRay(x::Int64)
 
-abstract type AbstractDimensions  <: Servable end
+render!(c::Connection, v::VultaTensor) do cm::ComponentModifier
 
-write!(c::Toolips.AbstractConnection, ad::AbstractDimensions) = begin
-
-end
-
-mutable struct ShapeDimensions <: AbstractDimensions
-    n::Int64
-    ShapeDimensions(n::Int64 = 1 ...) = new(length(n))
-end
-
-const v = ShapeDimensions(1)
-
-*(n::Int64, v::ShapeDimensions) = VultaVector(n)
-
-*(n::Int64, v::ShapeDimensions, vecdata::Vector{Int64} ...) = VultaVector(n)
-
-
-mutable struct VultaVector{D <: Any} <: Servable
-    vec::Vector{Int64}
-    VultaVector(n::Int64 = 1) = new{Symbol(n)}(Vector{Int64}())
 end
 
 *(v::VultaVector, i::Vector{Int64}) = VultaVector.vec =
