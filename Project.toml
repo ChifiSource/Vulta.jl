@@ -1,0 +1,10 @@
+name = "Vulta"
+uuid = "40234ac0-9f8b-4f02-9cbd-3e61fd288e1c"
+authors = ["emmac <emmettgb@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Toolips = "a47e2ad8-fcf7-417c-9746-32b9bdf220bd"
+ToolipsSVG = "8ae86ec9-919d-4ece-9a6d-09b7d28dae11"
+ToolipsSession = "2fe55384-55bc-4df3-9d59-c817d405cd05"
