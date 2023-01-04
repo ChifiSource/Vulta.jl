@@ -2,43 +2,25 @@ module Vulta
 using Toolips
 using ToolipsSession
 using ToolipsSVG
-import ToolipsSession: rpc!
 
-abstract type VultaVector end
+include("PositionVecttors.jl")
 
-mutable struct Vec2 <: VultaVector
-    x::Int64
-    y::Int64
-end
-
-mutable struct Vec3 <: VultaVector
-    x::Int64
-    y::Int64
-    z::Int64
-end
-
-mutable struct VultaModifier{V <: VultaVector} <: ToolipsSession.AbstractComponentModifier
-    c::Connection
-    delta::Int64
-    rootc::Dict{String, Servable}
-    changes::Vector{String}
-    function VultaModifier(c::Connection,
-        delta::Int64, width::Int64, height::Int64, cm::ComponentModifier)
-        comps::Dict{String, Vec2} = Dict{String, Vec2}()
-        new{Vec2}(c, delta, cm.rootc, cm.changes)
-    end
-    function VultaModifier(delta::Int64, width::Int64, height::Int64, depth::Int64,
-         cm::ComponentModifier)
-         throw!("3D has not been implemented")
+mutable struct VultaCore <: Toolips.ServerExtension
+    type::Symbol
+    peers::Dict{String, Servable}
+    deltas::Dict{String, Int64}
+    function VultaCore()
+        new(:connection, Dict{String, Servable}())
     end
 end
 
 function open(f::Function, c::Connection, bod::Component{:body},
     width::Int64 = 1280, height::Int64 = 720; tickrate::Int64 = 100)
-    open_rpc!(c, "vulta-rpc", tickrate = tickrate)
-    push!(c[:Session].peers,
-     getip(c) => Dict{String, Vector{String}}(getip(c) => Vector{String}()))
+    open_rpc!(c, getip(c), tickrate = tickrate)
+    push!(c[:VultaCore].peers,
+     getip(c) => Dict{String, Servable}()))
      delta::Int64 = 0
+     push!(c[:VultaCore].deltas, getip(c) => delta)
     script!(c, getip(c) * "rpc", time = tickrate) do cm::ComponentModifier
         delta += 1
         push!(cm.changes, join(c[:Session].peers[getip(c)][getip(c)]))
@@ -53,13 +35,18 @@ function open(f::Function, c::Connection, bod::Component{:body},
     write!(c, bod)
 end
 
-length(c::Component{:circle}) = parse(Int64, c["r"])
+function open(f::Function, c::Connection, width::Int64 = 1280,
+    height::Int64 = 720, depth::Int64 = 1000; tickrate::Int64 = 20)
+    throw!("3D has not been implemented")
+end
 
-length(c::Component{:rect}) = parse(Int64, c["length"])
+function join()
 
-width(c::Component{:circle}) = parse(Int64, c["r"])
-
-width(c::Component{:rect}) = parse(Int64, c["width"])
+function initialize(f::Function, c::Connection)
+    if delta(c) == 1
+        f(vm)
+    end
+end
 
 function force(cm::ComponentModifier, comp::Component{:circle})
     if ~("fx" in keys(comp.properties))
@@ -119,77 +106,7 @@ function force(cm::ComponentModifier, comp::Component{:rect})
     end
 end
 
-function rpc!(vm::VultaModifier)
-    mods::String = find_client(vm)
-    [push!(mod, join(cm.changes)) for mod in values(vm.c[:Session].peers[mods])]
-    deleteat!(cm.changes, 1:length(cm.changes))
-end
 
-find_client(vm::VultaModifier) = findfirst(x -> getip(c) in keys(x),
-                                            vm.c[:Session].peers)
 
-function close(vm)
-
-end
-
-function connect(f::Function, c::Connection, bod::Component{:body}, ip::String,
-    width::Int64 = 1280, height::Int64 = 720; tickrate::Int64 = 20)
-end
-
-function open(f::Function, c::Connection, width::Int64 = 1280,
-    height::Int64 = 720, depth::Int64 = 1000; tickrate::Int64 = 20)
-    throw!("3D has not been implemented")
-end
-
-function translate!(cm::VultaModifier{Vec2}, comp::Component{:circle}, v::Vec2)
-    cm[comp] = "cx" => v.x; cm[comp] = "cy" => v.y
-end
-
-function translate!(cm::VultaModifier{Vec2}, comp::Component{:rect}, v::Vec2)
-    cm[comp] = "x" => v.x; cm[comp] = "y" => v.y
-end
-
-function is_colliding(vm::VultaModifier{Vec2}, s1::Component{<:Any},
-    s2::Component{<:Any})
-    s1 = vm.rootc[s1.name]
-    s2 = vm.rootc[s2.name]
-    s1pos = position(s1); s2pos = position(s2)
-    diffx, diffy = abs(s1pos.x - s2pos.x), abs(s1pos.y - s2pos.y)
-    if diffy < 5 && diffx < 5
-        true
-    else
-        false
-    end
-end
-
-position(comp::Component{:circle}) = Vec2(parse(Int64, comp["cx"]),
-        parse(Int64, comp["cy"]))
-position(comp::Component{<:Any}) = Vec2(parse(Int64, comp["x"]),
-                parse(Int64, comp["y"]))
-
-function force!(vm::VultaModifier{Vec2}, s::Component{<:Any}, force::Vec2)
-    vm[s] = "fx" => force.x
-    vm[s] = "fy" => force.y
-end
-
-function spawn!(vm::VultaModifier{Vec2}, s::Component{<:Any},
-    v::Vec2 = Vec2(0, 0))
-
-end
-
-function spawn!(vm::VultaModifier{Vec2}, s::Component{:rect}, v::Vec2 = Vec2(0, 0);
-    decay::Int64 = 1)
-    s["x"] = v.x; s["y"] = v.y; s["fx"] = 0; s["fy"] = 0; s["decay"] = decay
-    style!(s, "transition" => 1seconds)
-    append!(vm, "vulta-main", s)
-end
-
-function spawn!(vm::VultaModifier{Vec2}, s::Component{:circle}, v::Vec2 = Vec2(0, 0);
-    decay::Int64 = 1)
-    s["cx"] = v.x; s["cy"] = v.y; s["fx"] = 0; s["fy"] = 0; s["decay"] = decay
-    style!(s, "transition" => 1seconds)
-    append!(vm, "vulta-main", s)
-end
-
-export spawn!, translate!, VultaModifier, Vec2, Vec3, force!, is_colliding
+export spawn!, translate!, VultaModifier, Vec2, Vec3, force!, is_colliding, initialize
 end # - module
