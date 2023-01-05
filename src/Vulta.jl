@@ -1,51 +1,33 @@
 module Vulta
 using Toolips
 using ToolipsSession
+import ToolipsSession: AbstractComponentModifier
 using ToolipsSVG
 
-include("PositionVecttors.jl")
+include("PositionVectors.jl")
 
 mutable struct VultaCore <: Toolips.ServerExtension
     type::Symbol
-    peers::Dict{String, Servable}
+    peers::Dict{String, Dict{String, Servable}}
     deltas::Dict{String, Int64}
     function VultaCore()
-        new(:connection, Dict{String, Servable}())
+        new(:connection, Dict{String, Servable}(), Dict{String, Int64}())
     end
 end
 
-function open(f::Function, c::Connection, bod::Component{:body},
+function initialize(f::Function, c::Connection, bod::Component{:body},
     width::Int64 = 1280, height::Int64 = 720; tickrate::Int64 = 100)
-    open_rpc!(c, getip(c), tickrate = tickrate)
-    push!(c[:VultaCore].peers,
-     getip(c) => Dict{String, Servable}()))
-     delta::Int64 = 0
-     push!(c[:VultaCore].deltas, getip(c) => delta)
-    script!(c, getip(c) * "rpc", time = tickrate) do cm::ComponentModifier
-        delta += 1
-        push!(cm.changes, join(c[:Session].peers[getip(c)][getip(c)]))
-        vm = VultaModifier(c, delta, width, height, cm)
+    push!(c[:VultaCore].peers, getip(c) * "rpc" => Dict{String, Servable}())
+     push!(c[:VultaCore].deltas, getip(c) * "rpc" => 0)
+    open_rpc!(c, getip(c) * "rpc", tickrate = tickrate) do cm::ComponentModifier
+        c[:VultaCore].deltas[getip(c) * "rpc"] += 1
         [force(cm, comp) for comp in values(cm.rootc)]
-        f(vm)
-        c[:Session].peers[getip(c)][getip(c)] = Vector{String}()
+        f(cm)
     end
     wind = svg("vulta-main", width = width, height = height)
     push!(bod, wind)
     style!(wind, "padding" => 0px, "position" => "absolute")
     write!(c, bod)
-end
-
-function open(f::Function, c::Connection, width::Int64 = 1280,
-    height::Int64 = 720, depth::Int64 = 1000; tickrate::Int64 = 20)
-    throw!("3D has not been implemented")
-end
-
-function join()
-
-function initialize(f::Function, c::Connection)
-    if delta(c) == 1
-        f(vm)
-    end
 end
 
 function force(cm::ComponentModifier, comp::Component{:circle})
@@ -109,4 +91,6 @@ end
 
 
 export spawn!, translate!, VultaModifier, Vec2, Vec3, force!, is_colliding, initialize
+export initializing, delta
+export VultaCore
 end # - module

@@ -13,7 +13,7 @@ end
 
 length(c::Component{:circle}) = parse(Int64, c["r"])
 
-length(c::Component{:rect}) = parse(Int64, c["length"])
+length(c::Component{:rect}) = parse(Int64, c["height"])
 
 width(c::Component{:circle}) = parse(Int64, c["r"])
 
@@ -26,6 +26,8 @@ position(comp::Component{<:Any}) = Vec2(parse(Int64, comp["x"]),
                 parse(Int64, comp["y"]))
 
 delta(c::Connection) = c[:VultaCore].deltas[find_client(c)]
+
+initializing(c::Connection) = delta(c) == 1
 
 function spawn!(vm::AbstractComponentModifier, s::Component{<: Any}, v::Vec2 = Vec2(0, 0);
     decay::Int64 = 1)
@@ -46,10 +48,12 @@ function is_colliding(vm::AbstractComponentModifier, s1::Component{<:Any},
     s1 = vm.rootc[s1.name]
     s2 = vm.rootc[s2.name]
     s1pos = position(s1); s2pos = position(s2)
-    diffx, diffy = abs(s1pos.x - s2pos.x), abs(s1pos.y - s2pos.y)
-    combined_widh::Int64 = width(s1) + width(s2)
+    diffx, diffy = abs(s1pos.x) - abs(s2pos.x), abs(s1pos.y) - abs(s2pos.y)
+    combined_width::Int64 = width(s1) + width(s2)
     combined_length::Int64 = length(s1) + length(s2)
-    if diffy < length(s1) && diffx < combined_width
+    if abs(diffy) < combined_length - 2 && abs(diffx) < combined_width - 2
+        println(diffx, "  ", diffy)
+        println("::", combined_width, "  ", combined_length)
         true
     else
         false
@@ -66,7 +70,7 @@ end
 
 
 
-function force!(cm::AbstractComponentModifier s::Component{<:Any}, force::Vec2)
-    vm[s] = "fx" => force.x
-    vm[s] = "fy" => force.y
+function force!(cm::AbstractComponentModifier, s::Component{<:Any}, force::Vec2)
+    cm[s] = "fx" => force.x
+    cm[s] = "fy" => force.y
 end
